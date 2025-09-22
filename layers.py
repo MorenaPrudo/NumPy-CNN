@@ -90,13 +90,17 @@ def conv_batch_norm_forward(x,gamma,beta,norm_param):
     return out, cache
 
 def relu(x):
-    return (x>0) * x , x
+    mask = (x>0)
+    out = mask * x
+    cache = x,mask
+    return out,cache
 
 def fc_layer_forward(x,w,b):
     '''
     x is an array of activation maps (N,F) where N is the number of examples and F is the features of each example
     w is an array containing the weights for the fully-connected layer (F,H) where H is the number of neurons
     b is an array of biases for the fully-connected layer (H,)
+    out is of size (N,H)
     '''
     out = x.dot(w) + b
     cache = x,w,b
@@ -146,3 +150,31 @@ def conv_backward(dout,cache):
     db *= np.sum(dout, axis=(0, 3, 2))
     if pad>0:
         dx = dx[:, :, pad:-pad, pad:-pad]
+    return dx, dw, db
+
+def flatten_backward(dout,cache):
+    #dout is of shape (N, F)
+    #reshapes dout to (N, F, H, W)
+    x = cache
+    return dout.reshape(x.shape)
+
+def relu_backward(dout,cache):
+    #returns dx
+    x, mask = cache
+    return mask * dout
+
+def fc_layer_backward(dout,cache):
+    '''
+    dout is of shape (N, H) Where N is the number of examples and H is the number of neurons in the layer
+    returns dx,dw,db
+    cache = x,w,b
+    x is of shape (N,F)
+    w is of shape (F,H)
+    b is of shape (H,)
+    '''
+    x,w,b = cache
+    dx = np.dot(dout,w.T)
+    dw = np.dot(x.T,dout)
+    db = np.sum(dout,axis=0)
+    return dx, dw, db
+
