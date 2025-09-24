@@ -1,4 +1,7 @@
 import numpy as np
+from numpy.ma.core import zeros_like
+
+
 def conv_forward(x,weights,bias,conv_param):
     pass
     '''
@@ -77,15 +80,17 @@ def conv_batch_norm_forward(x,gamma,beta,norm_param):
     m = norm_param['momentum']
     mean = np.mean(x, axis = (0,2,3))
     var = np.var(x, axis = (0,2,3))
+    stab = var + eps
 
     out = x -  mean.reshape(1,-1,1,1)
-    out /= np.sqrt((var + eps).reshape(1, -1, 1, 1))
+    out /= np.sqrt((stab).reshape(1, -1, 1, 1))
     out *= gamma.reshape(1, -1, 1, 1)
     out += beta.reshape(1, -1, 1, 1)
 
     norm_param['running_mean'] = norm_param['running_mean'] * m + (1-m) * mean
     norm_param['running_var'] = norm_param['running_var'] * m + (1 - m) * mean
-    cache = x,gamma,beta,norm_param
+
+    cache = x,gamma,beta,mean,eps,stab
 
     return out, cache
 
@@ -178,3 +183,47 @@ def fc_layer_backward(dout,cache):
     db = np.sum(dout,axis=0)
     return dx, dw, db
 
+def max_pool_backward(dout,cache):
+    '''
+    dout is of shape (N, F, OH, OW)
+    cache is (x,pool_param)
+    pool_param is a dictionary with settings for the convolutional pass
+    x is the input of size (N,F,H,W)
+    :param dout:
+    :param cache:
+    :return:
+    '''
+    N = dout.shape[0]
+    x,pool_param = cache
+    stride = pool_param['stride']
+    pool_size = pool_param['size']
+
+    dx = np.zeros_like(x)
+    #remove after checking
+    output_height = dout.shape[2]
+    output_width = dout.shape[3]
+    for i in range(output_height):
+        for j in range(output_width):
+            x_slice = x[:,:,i*stride:i*stride+pool_size,j*stride:j*stride+pool_size]
+            max_vals = np.max(x_slice,axis = (2,3))
+            mask = max_vals.reshape(N,-1,1,1) == x_slice
+            dx[:,:,i*stride:i*stride+pool_size,j*stride:j*stride+pool_size] += dout[:,:,i,j].reshape(N,-1,1,1) * mask
+    return dx
+
+def conv_batch_norm_backward(dout,cache):
+    '''
+    x is of size(N, F, H, W)
+    gamma is size(F, )
+    beta is size(F, )
+    '''
+    x, gamma, beta, mean, eps, stab = cache
+
+    NHW = x.shape[0] * x.shape[2] * x.shape[3]
+    dx = np.zeros_like(x)
+    dout_gamma = dout * gamma.reshape(1,-1,1,1)
+
+    dout_mean_x = np.sum(dout_gamma * (x - mean.reshape(1,-1,1,1)),axis=(0,2,3))
+    dout_sum = np.sum(dout_gamma,axis=(0,2,3))
+    dx = (np.sqrt(stab).reshape(1,-1,1,1) * dout_gamma + (-dout_sum * np.sqrt(stab)/NHW).reshape(1,-1,1,1) - dout_mean_x.reshape(1,-1,1,1) * (x - mean.reshape(1,-1,1,1))/(NHW * np.sqrt(stab)).reshape(1,-1,1,1))/stab.reshape(1,-1,1,1)
+
+    return dx
