@@ -1,5 +1,21 @@
 import numpy as np
-from numpy.ma.core import zeros_like
+
+
+def softmax_loss(scores,y):
+    #returns dx
+    #scores should be an array (N,C) Where N is the number of examples and C is the number of classes.
+    #y should be an array (N,) Each element is a single value representing each class
+
+    N = scores.shape[0]
+    scores = scores - np.max(scores, axis = 1,keepdims=True)
+    #prevents overflow
+
+    exp_scores = np.exp(scores)
+    correct_exp_scores = exp_scores[:,y]
+    sum_exp_scores = np.sum(exp_scores,axis = 1)
+    loss = np.sum(-np.log(correct_exp_scores/sum_exp_scores))/N   #average loss per example
+    return loss
+
 
 
 def conv_forward(x,weights,bias,conv_param):
@@ -83,7 +99,7 @@ def conv_batch_norm_forward(x,gamma,beta,norm_param):
     stab = var + eps
 
     out = x -  mean.reshape(1,-1,1,1)
-    out /= np.sqrt((stab).reshape(1, -1, 1, 1))
+    norm = out / np.sqrt((stab).reshape(1, -1, 1, 1))
     out *= gamma.reshape(1, -1, 1, 1)
     out += beta.reshape(1, -1, 1, 1)
 
@@ -215,8 +231,9 @@ def conv_batch_norm_backward(dout,cache):
     x is of size(N, F, H, W)
     gamma is size(F, )
     beta is size(F, )
+    returns dx,dgamma,dbeta
     '''
-    x, gamma, beta, mean, eps, stab = cache
+    x, gamma, beta, mean, eps, stab, norm = cache
 
     NHW = x.shape[0] * x.shape[2] * x.shape[3]
     dx = np.zeros_like(x)
@@ -226,4 +243,4 @@ def conv_batch_norm_backward(dout,cache):
     dout_sum = np.sum(dout_gamma,axis=(0,2,3))
     dx = (np.sqrt(stab).reshape(1,-1,1,1) * dout_gamma + (-dout_sum * np.sqrt(stab)/NHW).reshape(1,-1,1,1) - dout_mean_x.reshape(1,-1,1,1) * (x - mean.reshape(1,-1,1,1))/(NHW * np.sqrt(stab)).reshape(1,-1,1,1))/stab.reshape(1,-1,1,1)
 
-    return dx
+    return dx, np.sum(norm * dout, axis=(0,2,3)), np.sum(dout, axis=(0,2,3))
