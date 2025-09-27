@@ -11,10 +11,12 @@ def softmax_loss(scores,y):
     #prevents overflow
 
     exp_scores = np.exp(scores)
-    correct_exp_scores = exp_scores[:,y]
+    correct_exp_scores = exp_scores[np.arange(N),y]
     sum_exp_scores = np.sum(exp_scores,axis = 1)
+    dx = exp_scores/sum_exp_scores
+    dx[np.arange(N),y] -= 1
     loss = np.sum(-np.log(correct_exp_scores/sum_exp_scores))/N   #average loss per example
-    return loss
+    return loss,dx
 
 
 
