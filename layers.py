@@ -38,20 +38,21 @@ def conv_forward(x,weights,bias,conv_param):
 
     input_height = x.shape[2]
     filter_height = weights.shape[2]
-    output_height = (input_height - filter_height + 2 * pad)// stride
+    output_height = (input_height - filter_height + 2 * pad)// stride + 1
     #Because both the filter and input are square we will not need to recalculate the same for width
     output_width = output_height
     filter_width = filter_height
 
     xpad = np.pad(x,pad_width=((0,0),(0,0),(pad,pad),(pad,pad)),mode='constant')
 
-    out = np.zeros(N,F,output_height,output_width)
+    out = np.zeros((N,F,output_height,output_width))
 
     for i in range(output_height):
         for j in range(output_width):
                 out[:,:,i,j] = bias + np.sum(xpad[:,:,i*stride:i*stride + filter_height,j*stride:j*stride + filter_width].reshape(N,1,-1) * weights.reshape(1,F,-1),axis=2)
 
     cache = x,weights,bias,conv_param,xpad
+    #print(out.shape)
     return out, cache
 
 def max_pool_forward(x,pool_param):
@@ -70,7 +71,7 @@ def max_pool_forward(x,pool_param):
     output_height = (input_height - pool_size) // stride + 1
     output_width = output_height
 
-    out = np.zeros(N,F,output_height,output_width)
+    out = np.zeros((N,F,output_height,output_width))
 
     for i in range(output_height):
         for j in range(output_width):

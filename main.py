@@ -1,7 +1,6 @@
-from PIL import Image
-import numpy as np
-import os
+
 import preproccesing
+from modelutil import Model
 
 
 X_train = preproccesing.load_image_data(preproccesing.train_path)
@@ -14,5 +13,6 @@ y_val = preproccesing.load_label_data(preproccesing.val_label_path)
 y_test = preproccesing.load_label_data(preproccesing.test_label_path)
 print("Labels loaded!")
 
-#Model.train()
-
+print(y_train[0:10])
+#model = Model()
+#model.train(X_train,y_train,X_val,y_val)
