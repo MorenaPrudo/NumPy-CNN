@@ -13,7 +13,7 @@ def softmax_loss(scores,y):
     exp_scores = np.exp(scores)
     correct_exp_scores = exp_scores[np.arange(N),y]
     sum_exp_scores = np.sum(exp_scores,axis = 1)
-    dx = exp_scores/sum_exp_scores
+    dx = exp_scores/sum_exp_scores.reshape(-1,1)
     dx[np.arange(N),y] -= 1
     loss = np.sum(-np.log(correct_exp_scores/sum_exp_scores))/N   #average loss per example
     return loss,dx
@@ -90,8 +90,8 @@ def conv_batch_norm_forward(x,gamma,beta,norm_param):
     cache = None
 
     if norm_param['test']:
-        x -= norm_param['running_mean'].reshape(1, -1, 1, 1)
-        x /= np.sqrt((norm_param['running_var'] + eps).reshape(1, -1, 1, 1))
+        x -= norm_param['running_values']['running_mean'].reshape(1, -1, 1, 1)
+        x /= np.sqrt((norm_param['running_values']['running_var'] + eps).reshape(1, -1, 1, 1))
         x *= gamma.reshape(1, -1, 1, 1)
         x += beta.reshape(1, -1, 1, 1)
         return x,cache
@@ -106,10 +106,10 @@ def conv_batch_norm_forward(x,gamma,beta,norm_param):
     out *= gamma.reshape(1, -1, 1, 1)
     out += beta.reshape(1, -1, 1, 1)
 
-    norm_param['running_mean'] = norm_param['running_mean'] * m + (1-m) * mean
-    norm_param['running_var'] = norm_param['running_var'] * m + (1 - m) * mean
+    norm_param['running_values']['running_mean'] = norm_param['running_values']['running_mean'] * m + (1-m) * mean
+    norm_param['running_values']['running_var'] = norm_param['running_values']['running_var'] * m + (1 - m) * var
 
-    cache = x,gamma,beta,mean,eps,stab
+    cache = x,gamma,beta,mean,eps,stab,norm
 
     return out, cache
 
@@ -148,7 +148,7 @@ def conv_backward(dout,cache):
 
     dw = np.zeros_like(weights)
     db = np.ones_like(bias)
-    dx = np.zeros_like(xpad)
+    dx = np.zeros_like(xpad,dtype=np.float64)
 
     pad = conv_param['pad']
     stride = conv_param['stride']

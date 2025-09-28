@@ -2,6 +2,8 @@ from PIL import Image
 import numpy as np
 import os
 
+from matplotlib import pyplot as plt
+
 test_path = os.path.expanduser(r"~\Documents\Datasets\CarDD\test\images")
 test_label_path = os.path.expanduser(r"~\Documents\Datasets\CarDD\test\labels")
 train_path = os.path.expanduser(r"~\Documents\Datasets\CarDD\train\images")
@@ -18,7 +20,7 @@ def load_image_data(path):
         image = image.resize(target_size)
         image_array = np.array(image) #converts image object to an array
         image_arrays.append(image_array)
-    return np.stack(image_arrays).reshape(-1,3,*target_size) #creates a 4D Numpy array by stacking the images
+    return np.stack(image_arrays).reshape(-1,224,224,3) #creates a 4D Numpy array by stacking the images
 
 def load_label_data(path):
     label_array = []
