@@ -3,13 +3,12 @@ import numpy as np
 import os
 
 from matplotlib import pyplot as plt
-
-test_path = os.path.expanduser(r"~\Documents\Datasets\CarDD\test\images")
-test_label_path = os.path.expanduser(r"~\Documents\Datasets\CarDD\test\labels")
-train_path = os.path.expanduser(r"~\Documents\Datasets\CarDD\train\images")
-train_label_path = os.path.expanduser(r"~\Documents\Datasets\CarDD\train\labels")
-val_path = os.path.expanduser(r"~\Documents\Datasets\CarDD\val\images")
-val_label_path = os.path.expanduser(r"~\Documents\Datasets\CarDD\val\labels")
+test_path = os.path.expanduser(r"~\Documents\Datasets\ArgoPest12\test\images")
+test_label_path = os.path.expanduser(r"~\Documents\Datasets\ArgoPest12\test\labels")
+train_path = os.path.expanduser(r"~\Documents\Datasets\ArgoPest12\train\images")
+train_label_path = os.path.expanduser(r"~\Documents\Datasets\ArgoPest12\train\labels")
+val_path = os.path.expanduser(r"~\Documents\Datasets\ArgoPest12\val\images")
+val_label_path = os.path.expanduser(r"~\Documents\Datasets\ArgoPest12\val\labels")
 target_size = (224,224)
 
 def load_image_data(path):
@@ -27,5 +26,6 @@ def load_label_data(path):
     for txtfile in os.listdir(path):
         txtpath = os.path.join(path,txtfile)
         with open(txtpath, "r") as file:
-            label_array.append(int(file.read(1)))
+            label = file.read(2).replace(" ", "")
+            label_array.append(int(label))
     return np.array(label_array)

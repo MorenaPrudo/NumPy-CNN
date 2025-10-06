@@ -6,7 +6,7 @@ from layers import flatten, fc_layer_forward
 
 
 class Model:
-    def __init__(self,reg=0,learning_rate=1e-3, num_classes = 6,epochs=10,batch_size=150,hidden_dim=100):
+    def __init__(self,reg=0,learning_rate=1.6e-3, num_classes = 12,epochs=10,batch_size=75,hidden_dim=60):
         self.epochs = epochs
         self.hidden_dim = hidden_dim
         self.batch_size = batch_size
@@ -57,6 +57,7 @@ class Model:
                 print("Current loss: " + str(self.loss))
             self.test(X_val,y_val,False,"val")
             self.test(X, y, False, "train")
+        self.params = self.best_params
         self.test(X_test, y_test, False, "test")
 
     def train_pass(self,X,y):
@@ -158,6 +159,8 @@ class Model:
             params[name] -= learning_rate * mt / (np.sqrt(vt) + eps)
 
     def test(self,X,y,present=False,training_type=""):
+        if present:
+            self.params = self.best_params
         params = self.params
         N = X.shape[0]
 
@@ -180,6 +183,7 @@ class Model:
         scores, cache = layers.fc_layer_forward(out, params['w4'], params['b4'])
 
         if present:
+            self.params = self.best_params
             return np.argmax(scores,axis = 1)
         else:
             accuracy = np.mean(np.argmax(scores, axis=1) == y) * 100
