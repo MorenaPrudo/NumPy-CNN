@@ -1,4 +1,4 @@
-import numpy as np
+import cupy as np
 import preproccesing
 import matplotlib.pyplot as plt
 import pickle
@@ -12,7 +12,7 @@ print("Images loaded!")
 
 #demo_image = X_test[43].copy()
 random_indices = np.random.permutation(X_train.shape[0])
-X_train = X_train[random_indices][0:3000]
+X_train = X_train[random_indices][0:1000]
 
 X_train = np.transpose(X_train,(0,3,1,2))
 X_val = np.transpose(X_val,(0,3,1,2))
@@ -22,7 +22,7 @@ y_train = preproccesing.load_label_data(preproccesing.train_label_path)
 y_val = preproccesing.load_label_data(preproccesing.val_label_path)
 y_test = preproccesing.load_label_data(preproccesing.test_label_path)
 
-y_train = y_train[random_indices][0:3000]
+y_train = y_train[random_indices][0:1000]
 print("Labels loaded!")
 
 print(X_train.shape)
@@ -59,7 +59,6 @@ X_test = (X_test - mean)/std
 
 model = Model()
 model.train(X_train,y_train,X_val,y_val,X_test,y_test)
-
 path = "model.pkl"
 with open(path, 'wb') as f:
     pickle.dump(model, f)

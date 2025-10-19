@@ -19,7 +19,6 @@ def softmax_loss(scores,y):
     return loss,dx
 
 
-
 def conv_forward(x,weights,bias,conv_param):
     pass
     '''
@@ -161,6 +160,7 @@ def conv_backward(dout,cache):
     input_height = x.shape[2]
     filter_height = weights.shape[2]
     output_height = (input_height - filter_height + 2 * pad)// stride + 1
+
     #Because both the filter and input are square we will not need to recalculate the same for width
     output_width = output_height
     filter_width = filter_height
@@ -218,7 +218,6 @@ def max_pool_backward(dout,cache):
     pool_size = pool_param['size']
 
     dx = np.zeros_like(x)
-    #remove after checking
     output_height = dout.shape[2]
     output_width = dout.shape[3]
     for i in range(output_height):

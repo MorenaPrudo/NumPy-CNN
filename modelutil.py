@@ -1,30 +1,31 @@
-import layers
-import numpy as np
 import copy
-
-from layers import flatten, fc_layer_forward
+from layers import *
+import numpy as np
+import gc
 
 
 class Model:
-    def __init__(self,reg=0,learning_rate=1.6e-3, num_classes = 12,epochs=10,batch_size=75,hidden_dim=60):
+    def __init__(self,reg=0,learning_rate=1e-3, num_classes = 12,epochs=40,batch_size=16,hidden_dim=100):
         self.epochs = epochs
         self.hidden_dim = hidden_dim
         self.batch_size = batch_size
         self.num_classes = num_classes
         self.initialization = 1e-2
-        self.params = { 'w1': self.initialization * np.random.randn(12,3,7,7),
-                        'b1': np.zeros(12),
-                        'g1' : np.ones(12),
-                        'beta1': np.zeros(12),
-                        'w2' :self.initialization * np.random.randn(12,12,4,4),
-                        'b2': np.zeros(12),
-                        'g2': np.ones(12),
-                        'beta2': np.zeros(12),
-                        'w3' : self.initialization * np.random.randn(17*17*12,self.hidden_dim),
-                        'b3': np.zeros(self.hidden_dim),
-                        'w4': self.initialization * np.random.randn(self.hidden_dim, self.num_classes),
-                        'b4': np.zeros(self.num_classes)
+        self.params = { 'w1': self.initialization * np.random.randn(32,3,3,3), #(F,D,H,W)
+                        'b1': np.zeros(32),
+                        'w2' :self.initialization * np.random.randn(64,32,4,4),
+                        'b2': np.zeros(64),
+                        'w3' :self.initialization * np.random.randn(64,64,4,4),
+                        'b3': np.zeros(64),
+                        'w4' : self.initialization * np.random.randn(26*26*64,self.hidden_dim),
+                        'b4': np.zeros(self.hidden_dim),
+                        'w5': self.initialization * np.random.randn(self.hidden_dim, self.num_classes),
+                        'b5': np.zeros(self.num_classes)
         }
+
+        for k, v in self.params.items():
+            self.params[k] = v.astype(np.float32)
+
         self.grads = {}
         self.learning_rate = learning_rate
         self.reg = reg
@@ -49,6 +50,9 @@ class Model:
             y_shuffled = y[random_indices]
 
             for batch in range(num_iter_per_epoch):
+                gc.collect()
+                np.get_default_memory_pool().free_all_blocks()
+
                 batch_size = min(self.batch_size, num_of_training)
                 self.train_pass(X_shuffled[batch*self.batch_size:batch*self.batch_size + batch_size],y_shuffled[batch*self.batch_size:batch*self.batch_size+batch_size])
                 num_of_training -= batch_size
@@ -56,7 +60,7 @@ class Model:
                 self.update_params(total_iter)
                 print("Current loss: " + str(self.loss))
             self.test(X_val,y_val,False,"val")
-            self.test(X, y, False, "train")
+            #self.test(X, y, False, "train")
         self.params = self.best_params
         self.test(X_test, y_test, False, "test")
 
@@ -65,43 +69,47 @@ class Model:
         reg = self.reg
 
         cache_array = []
-        conv_param1 = {'pad': 1, 'stride': 3}
-        conv_param2 = {'pad': 0, 'stride': 2}
+        conv_param1 = {'pad': 0, 'stride': 1}
+        conv_param2 = {'pad': 0, 'stride': 1}
+        conv_param3 = {'pad': 0, 'stride': 2}
         pool_param = {'size': 2, 'stride': 2}
-        norm_param1 = {'test': False, 'running_values':self.running_values, 'momentum': 0.9, 'eps': 1e-8}
-        norm_param2 = {'test': False, 'running_values':self.running_values2, 'momentum': 0.9, 'eps': 1e-8}
+        #norm_param1 = {'test': False, 'running_values':self.running_values, 'momentum': 0.9, 'eps': 1e-8}
 
-        out, cache = layers.conv_forward(X, params['w1'], params['b1'], conv_param1)
+        out, cache = conv_forward(X, params['w1'], params['b1'], conv_param1)
         cache_array.append(cache)
 
-        out, cache = layers.conv_batch_norm_forward(out, params['g1'], params['beta1'], norm_param1)
+        out, cache = relu(out)
         cache_array.append(cache)
 
-        out, cache = layers.relu(out)
+        out, cache = max_pool_forward(out, pool_param)
         cache_array.append(cache)
 
-        out, cache = layers.max_pool_forward(out, pool_param)
+        out, cache = conv_forward(out, params['w2'], params['b2'], conv_param2)
         cache_array.append(cache)
 
-        out, cache = layers.conv_forward(out, params['w2'], params['b2'], conv_param2)
+        out, cache = relu(out)
         cache_array.append(cache)
 
-        out, cache = layers.conv_batch_norm_forward(out, params['g1'], params['beta1'], norm_param2)
+        out, cache = max_pool_forward(out, pool_param)
         cache_array.append(cache)
 
-        out, cache = layers.relu(out)
+        out, cache = conv_forward(out, params['w3'], params['b3'], conv_param3)
         cache_array.append(cache)
 
-        out, cache = layers.flatten(out)
+        out, cache = relu(out)
         cache_array.append(cache)
 
-        out, cache = layers.fc_layer_forward(out, params['w3'], params['b3'])
+        out, cache = flatten(out)
         cache_array.append(cache)
 
-        scores, cache = layers.fc_layer_forward(out, params['w4'], params['b4'])
+        out, cache = fc_layer_forward(out, params['w4'], params['b4'])
         cache_array.append(cache)
 
-        loss, dx = layers.softmax_loss(scores, y)
+        scores, cache = fc_layer_forward(out, params['w5'], params['b5'])
+        cache_array.append(cache)
+
+        loss, dx = softmax_loss(scores, y)
+
 
         #regularization
 
@@ -110,34 +118,39 @@ class Model:
                 loss += reg * np.sum(param**2)/2
                 self.loss = loss
 
-        dx, dw4, db4 = layers.fc_layer_backward(dx, cache_array.pop())
-        dx, dw3, db3 = layers.fc_layer_backward(dx, cache_array.pop())
-        dx = layers.flatten_backward(dx, cache_array.pop())
-        dx = layers.relu_backward(dx, cache_array.pop())
-        dx, dg2, dbeta2 = layers.conv_batch_norm_backward(dx, cache_array.pop())
-        dx, dw2, db2 = layers.conv_backward(dx, cache_array.pop())
-        dx = layers.max_pool_backward(dx, cache_array.pop())
-        dx = layers.relu_backward(dx, cache_array.pop())
-        dx, dg1, dbeta1 = layers.conv_batch_norm_backward(dx, cache_array.pop())
-        dx, dw1, db1 = layers.conv_backward(dx, cache_array.pop())
+        dx, dw5, db5 = fc_layer_backward(dx, cache_array.pop())
+        dx, dw4, db4 = fc_layer_backward(dx, cache_array.pop())
+        dx = flatten_backward(dx, cache_array.pop())
+        dx = relu_backward(dx, cache_array.pop())
+        dx, dw3, db3 = conv_backward(dx, cache_array.pop())
+        dx = max_pool_backward(dx, cache_array.pop())
+        dx = relu_backward(dx, cache_array.pop())
+        dx, dw2, db2 = conv_backward(dx, cache_array.pop())
+        dx = max_pool_backward(dx, cache_array.pop())
+        dx = relu_backward(dx, cache_array.pop())
+        dx, dw1, db1 = conv_backward(dx, cache_array.pop())
 
-        grads = {'w1': dw1,
-                      'b1': db1,
-                      'g1': dg1,
-                      'beta1': dbeta1,
-                      'w2': dw2,
-                      'b2': db2,
-                      'g2': dg2,
-                      'beta2': dbeta2,
-                      'w3': dw3,
-                      'b3': db3,
-                      'w4': dw4,
-                      'b4': db4
-                      }
+        del cache_array
+        del cache
+
+        grads = {
+                  'w1': dw1,
+                  'b1': db1,
+                  'w2': dw2,
+                  'b2': db2,
+                  'w3': dw3,
+                  'b3': db3,
+                  'w4': dw4,
+                  'b4': db4,
+                  'w5': dw5,
+                  'b5': db5
+                }
+
         self.grads = grads
         for name, grad in grads.items():
+            self.grads[name] = grad.astype(np.float32)
             if 'w' in name:
-                self.grads[name] -= reg * grad
+                self.grads[name] -= np.float32(reg) * grad.astype(np.float32)
 
     def update_params(self,t):
         adam_momentum = self.adam_momentum
@@ -156,7 +169,9 @@ class Model:
             adam_velocity[name] = beta2 * adam_velocity.get(name, 0) + (1 - beta2) * (grad**2)
             vt = adam_velocity[name] / (1 - beta2 ** t)
 
-            params[name] -= learning_rate * mt / (np.sqrt(vt) + eps)
+            params[name] -= (learning_rate * mt / (np.sqrt(vt) + eps)).astype(np.float32)
+
+        self.grads = {}
 
     def test(self,X,y,present=False,training_type=""):
         if present:
@@ -164,23 +179,23 @@ class Model:
         params = self.params
         N = X.shape[0]
 
-        conv_param1 = {'pad': 1, 'stride': 3}
-        conv_param2 = {'pad': 0, 'stride': 2}
+        conv_param1 = {'pad': 0, 'stride': 1}
+        conv_param2 = {'pad': 0, 'stride': 1}
+        conv_param3 = {'pad': 0, 'stride': 2}
         pool_param = {'size': 2, 'stride': 2}
-        norm_param1 = {'test': True, 'running_values':self.running_values, 'momentum': 0.9, 'eps': 1e-8}
-        norm_param2 = {'test': True, 'running_values': self.running_values2, 'momentum': 0.9, 'eps': 1e-8}
 
 
-        out, cache = layers.conv_forward(X, params['w1'], params['b1'], conv_param1)
-        out, cache = layers.conv_batch_norm_forward(out, params['g1'], params['beta1'], norm_param1)
-        out, cache = layers.relu(out)
-        out, cache = layers.max_pool_forward(out, pool_param)
-        out, cache = layers.conv_forward(out, params['w2'], params['b2'], conv_param2)
-        out, cache = layers.conv_batch_norm_forward(out, params['g1'], params['beta1'], norm_param2)
-        out, cache = layers.relu(out)
-        out, cache = layers.flatten(out)
-        out, cache = layers.fc_layer_forward(out, params['w3'], params['b3'])
-        scores, cache = layers.fc_layer_forward(out, params['w4'], params['b4'])
+        out, cache = conv_forward(X, params['w1'], params['b1'], conv_param1)
+        out, cache = relu(out)
+        out, cache = max_pool_forward(out, pool_param)
+        out, cache = conv_forward(out, params['w2'], params['b2'], conv_param2)
+        out, cache = relu(out)
+        out, cache = max_pool_forward(out, pool_param)
+        out, cache = conv_forward(out, params['w3'], params['b3'], conv_param3)
+        out, cache = relu(out)
+        out, cache = flatten(out)
+        out, cache = fc_layer_forward(out, params['w4'], params['b4'])
+        scores, cache = fc_layer_forward(out, params['w5'], params['b5'])
 
         if present:
             self.params = self.best_params

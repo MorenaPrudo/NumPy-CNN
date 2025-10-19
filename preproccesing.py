@@ -11,6 +11,7 @@ val_path = os.path.expanduser(r"~\Documents\Datasets\ArgoPest12\val\images")
 val_label_path = os.path.expanduser(r"~\Documents\Datasets\ArgoPest12\val\labels")
 target_size = (224,224)
 
+
 def load_image_data(path):
     image_arrays = []
     for image_name in os.listdir(path):
@@ -26,6 +27,7 @@ def load_label_data(path):
     for txtfile in os.listdir(path):
         txtpath = os.path.join(path,txtfile)
         with open(txtpath, "r") as file:
+            #print(txtpath)
             label = file.read(2).replace(" ", "")
             label_array.append(int(label))
     return np.array(label_array)
